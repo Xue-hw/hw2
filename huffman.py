@@ -3,6 +3,9 @@ import os
 import pickle
 from collections import Counter
 
+
+
+
 class HuffmanNode:
     def __init__(self, char, freq):
         self.char = char
@@ -10,119 +13,101 @@ class HuffmanNode:
         self.left = None
         self.right = None
 
-    # 为了让 heapq 能够比较节点频率,把逻辑放在了 __lt__ 方法中
     def __lt__(self, other):
         return self.freq < other.freq
 
 class HuffmanCoder:
     def __init__(self):
-        self.codes = {}      # 字符 -> 编码 
-        self.reverse_codes = {} # 编码 -> 字符
+        self.codes = {}
+        self.reverse_codes = {}
 
-    def _get_frequencies(self, text):
-        return Counter(text)
-
-    def _build_huffman_tree(self, frequencies):
-        # 将每个字符及其频率包装成 HuffmanNode，放入列表，转化为最小堆
-        priority_queue = [HuffmanNode(char, freq) for char, freq in frequencies.items()]
-        heapq.heapify(priority_queue)
-
-        while len(priority_queue) > 1:
-            # 取出两个最小节点直到只剩下一个
-            node1 = heapq.heappop(priority_queue)
-            node2 = heapq.heappop(priority_queue)
-
-            # 合并两个最小节点，创建父节点
-            merged = HuffmanNode(None, node1.freq + node2.freq)
-            merged.left = node1
-            merged.right = node2
-            heapq.heappush(priority_queue, merged)
-
-        return heapq.heappop(priority_queue)
+    def _build_tree(self, freqs):
+        pq = [HuffmanNode(c, f) for c, f in freqs.items()]
+        heapq.heapify(pq)
+        if len(pq) == 1: # 处理只有一个字符的特殊情况
+            node = heapq.heappop(pq)
+            root = HuffmanNode(None, node.freq)
+            root.left = node
+            return root
+        while len(pq) > 1:
+            n1, n2 = heapq.heappop(pq), heapq.heappop(pq)
+            merged = HuffmanNode(None, n1.freq + n2.freq)
+            merged.left, merged.right = n1, n2
+            heapq.heappush(pq, merged)
+        return heapq.heappop(pq)
 
     def _generate_codes(self, root, current_code):
-        if root is None:
-            return
-
+        if root is None: return
         if root.char is not None:
             self.codes[root.char] = current_code
             self.reverse_codes[current_code] = root.char
             return
-
         self._generate_codes(root.left, current_code + "0")
         self._generate_codes(root.right, current_code + "1")
 
-    def _get_encoded_text(self, text):
-        return "".join([self.codes[char] for char in text])
-
-    def _pad_encoded_text(self, encoded_text):
-        # 计算需要补齐的0的数量
-        extra_padding = 8 - len(encoded_text) % 8
-        for i in range(extra_padding):
-            encoded_text += "0"
-        
-        # 将补零的数量转换成8位二进制，放在最前面
-        padded_info = "{0:08b}".format(extra_padding)
-        return padded_info + encoded_text
-
-    def _get_byte_array(self, padded_encoded_text):
-        # 将 01 字符串转换成真正的字节数组
-        b = bytearray()
-        for i in range(0, len(padded_encoded_text), 8):
-            byte = padded_encoded_text[i:i+8]
-            b.append(int(byte, 2))
-        return b
-
     def compress(self, input_path):
         output_path = input_path + ".huff"
-        
-        with open(input_path, 'r', encoding='utf-8') as f:
-            text = f.read()
+        # 字节流读取，支持所有文本编码
+        with open(input_path, 'rb') as f:
+            data = f.read()
 
-        freqs = self._get_frequencies(text)
-        root = self._build_huffman_tree(freqs)
+        if not data: return None
+
+        freqs = Counter(data)
+        root = self._build_tree(freqs)
+        self.codes = {}
         self._generate_codes(root, "")
-        encoded_text = self._get_encoded_text(text)
-        padded_encoded_text = self._pad_encoded_text(encoded_text)
-        byte_array = self._get_byte_array(padded_encoded_text)
+
+        # 生成比特流字符串
+        encoded_str = "".join([self.codes[b] for b in data])
+        
+        # 补齐逻辑：首字节存补零数
+        extra_padding = 8 - len(encoded_str) % 8
+        full_bit_str = "{0:08b}".format(extra_padding) + encoded_str + ("0" * extra_padding)
+        
+        # 转为字节数组写入
+        byte_arr = bytearray()
+        for i in range(0, len(full_bit_str), 8):
+            byte_arr.append(int(full_bit_str[i:i+8], 2))
 
         with open(output_path, 'wb') as output:
-            pickle.dump(freqs, output)  # 使用 pickle 简单存储频率表
-            output.write(byte_array)
+            pickle.dump(freqs, output)
+            output.write(byte_arr)
         
         return output_path
 
     def decompress(self, input_path):
+        # 任务要求：输出为文本文件
         output_path = input_path.replace(".huff", "_decompressed.txt")
 
         with open(input_path, 'rb') as f:
-
             freqs = pickle.load(f)
-            root = self._build_huffman_tree(freqs)
+            root = self._build_tree(freqs)
+            self.reverse_codes = {}
             self._generate_codes(root, "")
 
+            # 读取二进制数据并转为比特位
             bit_string = ""
             byte = f.read(1)
-            while len(byte) > 0:
-                byte = ord(byte)
-                bits = bin(byte)[2:].rjust(8, '0')
-                bit_string += bits
+            while byte:
+                # 关键：使用 byte[0] 直接获取整数值
+                bit_string += format(byte[0], '08b')
                 byte = f.read(1)
 
-        padded_info = bit_string[:8]
-        extra_padding = int(padded_info, 2)
-        bit_string = bit_string[8:]
-        encoded_text = bit_string[:-1*extra_padding]
+        extra_padding = int(bit_string[:8], 2)
+        encoded_data = bit_string[8 : -extra_padding if extra_padding > 0 else None]
 
-        current_code = ""
-        decoded_text = ""
-        for bit in encoded_text:
-            current_code += bit
-            if current_code in self.reverse_codes:
-                decoded_text += self.reverse_codes[current_code]
-                current_code = ""
+        # 译码为字节序列
+        decoded_bytes = bytearray()
+        curr = ""
+        for bit in encoded_data:
+            curr += bit
+            if curr in self.reverse_codes:
+                decoded_bytes.append(self.reverse_codes[curr])
+                curr = ""
 
-        with open(output_path, 'w', encoding='utf-8') as output:
-            output.write(decoded_text)
+        # 任务要求：写回文本文件
+        with open(output_path, 'wb') as output:
+            output.write(decoded_bytes)
         
         return output_path
