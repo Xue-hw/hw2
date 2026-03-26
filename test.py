@@ -25,7 +25,7 @@ coder = huffman.HuffmanCoder()#编码器
 current_dir = os.path.dirname(os.path.abspath(__file__))#文件绝对目录
 
 def show_top_characters(file_path, top_k=10):
-    """真正显示文件中出现频率最高的字符（包括汉字）"""
+    # 显示文本中出现频率最高的字符，帮助理解数据分布
     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
         text = f.read()
     
@@ -40,14 +40,12 @@ def show_top_characters(file_path, top_k=10):
 def test_huffman_bytes(file_path, show_codes=True):
     # 升级为字节流处理    
     show_top_characters(file_path)
-    # 1. 压缩
-    # 确保 huffman.py 内部使用的是 open(file_path, 'rb')
+    # 压缩
     compressed_file = coder.compress(file_path)
     if show_codes:
         print(f"\n[状态] 正在为 {file_path} 生成字节映射编码表...")
         print("-" * 50)
-
-        # 此时 char_key 是字符串（字符）
+        # 排序
         sorted_codes = sorted(coder.codes.items(), key=lambda x: len(x[1]))
         
         print(f"{'字符':<8} | {'可视化含义':<15} | {'码长':<6} | {'哈夫曼编码'}")
@@ -60,7 +58,7 @@ def test_huffman_bytes(file_path, show_codes=True):
             try:
                 val = ord(char_key)
             except TypeError:
-                val = -1 # 防御性编程
+                val = -1 
 
             # 1. 处理控制字符
             if val in CONTROL_CHARS:
@@ -82,22 +80,21 @@ def test_huffman_bytes(file_path, show_codes=True):
             print(f"... 剩余 {len(sorted_codes)-30} 个字节映射已省略 ...")
         print("-" * 50)
 
-    # 2. 解压
+    # 解压
     decompressed_file = coder.decompress(compressed_file)
 
-    # 3. 数据校验与报告
     original_size = os.path.getsize(file_path)
     compressed_size = os.path.getsize(compressed_file)
     # 计算指标
-    saving = (1 - compressed_size / original_size) * 100
-    ratio = (compressed_size / original_size) * 100
+    saving = (1 - compressed_size / original_size) * 100 #压缩后节省的空间
+    ratio = (compressed_size / original_size) * 100 #压缩后占原来的百分比
 
     print(f"\n--- 压缩任务分析 ---")
     print(f"1. 目标文件: {file_path}")
     print(f"2. 原始大小: {original_size} 字节")
     print(f"3. 压缩大小: {compressed_size} 字节")
-    print(f"4. 空间节省率 (Saving): {saving:.2f}%")#压缩后节省的空间
-    print(f"5. 压缩比率 (Ratio):  {ratio:.2f}%")#压缩后占原来的百分比
+    print(f"4. 空间节省率 (Saving): {saving:.2f}%")
+    print(f"5. 压缩比率 (Ratio):  {ratio:.2f}%")
 
     with open(file_path, 'r', encoding='utf-8') as f1, \
      open(decompressed_file, 'r', encoding='utf-8') as f2:
@@ -108,8 +105,6 @@ def test_huffman_bytes(file_path, show_codes=True):
 
 
 def prepare_test_data(filename):
-
-    """根据文件绝对路径自动准备对应的测试数据"""
     file_path = os.path.join(current_dir,filename)
 
     if os.path.exists(file_path):
@@ -132,8 +127,6 @@ def prepare_test_data(filename):
     print(f"数据准备就绪: {file_path}")
     return True
 
-
-# --- 统一执行入口 ---
 if __name__ == "__main__":
     user_input = input("请输入要处理的文件路径：").strip().strip('"')
 
@@ -161,4 +154,4 @@ if __name__ == "__main__":
         file_size = os.path.getsize(TARGET_FILE)
         is_large = file_size > 1024 * 1024
         
-        test_huffman_bytes(TARGET_FILE)#show_codes=not is_large
+        test_huffman_bytes(TARGET_FILE)#show_codes=not is_large（可选）

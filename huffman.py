@@ -19,7 +19,7 @@ class HuffmanCoder:
         self.reverse_codes = {}
 
     def _build_tree(self, freqs):
-        pq = [HuffmanNode(c, f) for c, f in freqs.items()]
+        pq = [HuffmanNode(c, f) for c, f in freqs.items()]#构建优先队列
         heapq.heapify(pq)
         if len(pq) == 0: return None
         if len(pq) == 1:
@@ -27,6 +27,7 @@ class HuffmanCoder:
             root = HuffmanNode(None, node.freq)
             root.left = node
             return root
+        # 合并节点
         while len(pq) > 1:
             n1, n2 = heapq.heappop(pq), heapq.heappop(pq)
             merged = HuffmanNode(None, n1.freq + n2.freq)
@@ -35,7 +36,7 @@ class HuffmanCoder:
         return heapq.heappop(pq)
 
     def _get_lengths(self, root, current_len, lengths):
-        """获取字符对应的编码长度"""
+        #获取字符对应的编码长度
         if root is None: return
         if root.char is not None:
             lengths[root.char] = current_len
@@ -44,7 +45,7 @@ class HuffmanCoder:
         self._get_lengths(root.right, current_len + 1, lengths)
 
     def _generate_canonical_codes(self, lengths):
-        """根据长度生成范式哈夫曼编码"""
+        # 根据长度生成范式哈夫曼编码
         if not lengths: return {}
         # 排序：先按长度，再按字符字典序
         sorted_items = sorted(lengths.items(), key=lambda x: (x[1], x[0]))
@@ -69,27 +70,27 @@ class HuffmanCoder:
             text = f.read()
         if not text: return None
 
-        # 1. 统计字符频率并获取码长
+        #  统计字符频率并获取码长
         freqs = Counter(text)
         root = self._build_tree(freqs)
         lengths = {}
         self._get_lengths(root, 0, lengths)
 
-        # 2. 生成范式编码并转换数据
+        #  生成范式编码并转换数据
         self.codes = self._generate_canonical_codes(lengths)
         encoded_str = "".join([self.codes[c] for c in text])
         
-        # 3. 补齐位处理
+        # 补齐位处理
         extra_padding = (8 - len(encoded_str) % 8) % 8
         full_bit_str = "{0:08b}".format(extra_padding) + encoded_str + ("0" * extra_padding)
         
-        # 4. 写入文件
+        # 写入文件
         byte_arr = bytearray()
         for i in range(0, len(full_bit_str), 8):
             byte_arr.append(int(full_bit_str[i:i+8], 2))
 
         with open(output_path, 'wb') as output:
-            pickle.dump(lengths, output) # 方案A存储字符码长表
+            pickle.dump(lengths, output) # 存储字符码长表
             output.write(byte_arr)
         return output_path
 
