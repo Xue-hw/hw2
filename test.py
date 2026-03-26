@@ -88,35 +88,23 @@ def test_huffman_bytes(file_path, show_codes=True):
     # 3. 数据校验与报告
     original_size = os.path.getsize(file_path)
     compressed_size = os.path.getsize(compressed_file)
+    # 计算指标
+    saving = (1 - compressed_size / original_size) * 100
+    ratio = (compressed_size / original_size) * 100
 
-    print(f"\n--- 字节流压缩任务报告 ---")
+    print(f"\n--- 压缩任务分析 ---")
     print(f"1. 目标文件: {file_path}")
     print(f"2. 原始大小: {original_size} 字节")
     print(f"3. 压缩大小: {compressed_size} 字节")
-    print(f"4. 压缩率:   {(1 - compressed_size/original_size)*100:.2f}%")
-    
-    # 二进制严格校验
-    # with open(file_path, 'rb') as f1, open(decompressed_file, 'rb') as f2:
-    #     if f1.read() == f2.read():
-    #         print(f"5. 最终校验: 成功 (字节级完全一致)")
-    #     else:
-    #         print(f"5. 最终校验: 失败 (数据损坏)")
+    print(f"4. 空间节省率 (Saving): {saving:.2f}%")#压缩后节省的空间
+    print(f"5. 压缩比率 (Ratio):  {ratio:.2f}%")#压缩后占原来的百分比
+
     with open(file_path, 'r', encoding='utf-8') as f1, \
      open(decompressed_file, 'r', encoding='utf-8') as f2:
         if f1.read() == f2.read():
             print("5. 最终校验: 成功 (字符级完全一致)")
         else:
             print(f"5. 最终校验: 失败 (数据损坏)")
-
-def debug_specific_word(coder, word="红楼梦"):
-    print(f"\n[特定词汇编码分析]: {word}")
-    for char in word:
-        byte_seq = char.encode('utf-8')
-        print(f" 字符 '{char}':")
-        for b in byte_seq:
-            print(f"   字节 {hex(b)} -> 编码: {coder.codes.get(b, '未映射')}")
-
-
 
 
 def prepare_test_data(filename):
@@ -144,26 +132,16 @@ def prepare_test_data(filename):
     print(f"数据准备就绪: {file_path}")
     return True
 
-# --- 统一执行入口 ---
-if __name__ == "__main__":
-    TARGET_FILENAME = "shakespeare.txt"   # 可选: "shakespeare.txt", "hongloumeng.txt"
-    TARGET_FILE = os.path.join(current_dir, TARGET_FILENAME)
-    if prepare_test_data(TARGET_FILENAME):
-        # 检查文件大小
-        is_large = os.path.getsize(TARGET_FILE) > 1024 * 1024
-        # 传入绝对路径进行测试
-        test_huffman_bytes(TARGET_FILE)
-        #debug_specific_word(coder, "Shakespeare")
 
 # --- 统一执行入口 ---
 if __name__ == "__main__":
-    user_input = input("请输入要处理的文件路径：").strip()
+    user_input = input("请输入要处理的文件路径：").strip().strip('"')
 
     # 确定目标文件
     if not user_input:
         TARGET_FILENAME = "shakespeare.txt"   # 可选: "shakespeare.txt", "hongloumeng.txt"
         TARGET_FILE = os.path.join(current_dir, TARGET_FILENAME)
-        # 如果是默认文件，尝试自动准备
+        # 默认文件
         if not prepare_test_data(TARGET_FILENAME):
             print("错误：无法准备默认测试数据。")
             exit()
@@ -184,4 +162,3 @@ if __name__ == "__main__":
         is_large = file_size > 1024 * 1024
         
         test_huffman_bytes(TARGET_FILE)#show_codes=not is_large
-        debug_specific_word(coder, "Shakespeare")
